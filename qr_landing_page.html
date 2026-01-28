@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurant Menu - Loading...</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .status {
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .loading {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .online {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .offline {
+            background: #ffebee;
+            color: #c62828;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .message {
+            font-size: 16px;
+            line-height: 1.6;
+            margin: 15px 0;
+        }
+        
+        .hours {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .retry-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+        
+        .retry-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .footer {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🍽️</div>
+        <h1 id="title">Welcome to Our Restaurant</h1>
+        
+        <div id="statusBox" class="status loading">
+            <div class="spinner"></div>
+            <div class="message">Checking restaurant system...</div>
+        </div>
+        
+        <button id="retryBtn" class="retry-btn" style="display: none;" onclick="checkStatus()">
+            🔄 Try Again
+        </button>
+        
+        <div class="footer">
+            Thank you for choosing us! 🙏
+        </div>
+    </div>
+
+    <script>
+        // Configuration - UPDATE THESE VALUES
+        const CONFIG = {
+            // Your ngrok URL or server URL (update this when software starts)
+            serverUrl: 'https://prefer-board-referred-webmaster.trycloudflare.com',  // e.g., 'https://abc123.ngrok.io'
+            tablePath: window.location.hash.substring(1) || 'table_1',  // Get table from URL hash
+            restaurantHours: '10:00 AM - 10:00 PM',
+            maxRetries: 3,
+            retryDelay: 2000
+        };
+
+        let retryCount = 0;
+
+        async function checkStatus() {
+            const statusBox = document.getElementById('statusBox');
+            const retryBtn = document.getElementById('retryBtn');
+            
+            // Show loading state
+            statusBox.className = 'status loading';
+            statusBox.innerHTML = `
+                <div class="spinner"></div>
+                <div class="message">Checking restaurant system...</div>
+            `;
+            retryBtn.style.display = 'none';
+            
+            try {
+                // Try to ping the server
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                
+                const response = await fetch(`${CONFIG.serverUrl}/qr/${CONFIG.tablePath}`, {
+                    method: 'HEAD',
+                    signal: controller.signal,
+                    mode: 'no-cors' // This allows the request even with CORS issues
+                });
+                
+                clearTimeout(timeoutId);
+                
+                // If we got here, server is reachable
+                showOnline();
+                
+            } catch (error) {
+                console.log('Server check failed:', error);
+                
+                // Retry logic
+                if (retryCount < CONFIG.maxRetries) {
+                    retryCount++;
+                    setTimeout(checkStatus, CONFIG.retryDelay);
+                } else {
+                    showOffline();
+                }
+            }
+        }
+
+        function showOnline() {
+            const statusBox = document.getElementById('statusBox');
+            statusBox.className = 'status online';
+            statusBox.innerHTML = `
+                <div class="message">
+                    <div style="font-size: 48px; margin-bottom: 10px;">✅</div>
+                    <strong>Restaurant System Online!</strong><br>
+                    Redirecting to menu...
+                </div>
+            `;
+            
+            // Redirect to actual menu after 1 second
+            setTimeout(() => {
+                window.location.href = `${CONFIG.serverUrl}/qr/${CONFIG.tablePath}`;
+            }, 1000);
+        }
+
+        function showOffline() {
+            const statusBox = document.getElementById('statusBox');
+            const retryBtn = document.getElementById('retryBtn');
+            
+            statusBox.className = 'status offline';
+            statusBox.innerHTML = `
+                <div class="message">
+                    <div style="font-size: 48px; margin-bottom: 10px;">⏰</div>
+                    <strong>Restaurant System Currently Unavailable</strong><br><br>
+                    We're sorry, our digital menu system is currently offline.
+                    This may be because:
+                    <ul style="text-align: left; margin: 15px 0; padding-left: 40px;">
+                        <li>Restaurant is closed</li>
+                        <li>System is being updated</li>
+                        <li>Temporary technical issue</li>
+                    </ul>
+                </div>
+                <div class="hours">
+                    <strong>📅 Operating Hours:</strong><br>
+                    ${CONFIG.restaurantHours}
+                </div>
+                <div class="message" style="font-size: 14px; margin-top: 20px;">
+                    Please visit us during operating hours or ask our staff for assistance.
+                </div>
+            `;
+            
+            retryBtn.style.display = 'inline-block';
+            retryCount = 0; // Reset retry count for manual retry
+        }
+
+        // Alternative: Direct redirect without checking
+        function directRedirect() {
+            // If you want to skip the check and redirect directly (faster but shows errors if offline)
+            window.location.href = `${CONFIG.serverUrl}/qr/${CONFIG.tablePath}`;
+        }
+
+        // Start checking when page loads
+        window.onload = function() {
+            // Check if server URL is configured
+            if (CONFIG.serverUrl === 'YOUR_NGROK_URL_HERE' || !CONFIG.serverUrl) {
+                const statusBox = document.getElementById('statusBox');
+                statusBox.className = 'status offline';
+                statusBox.innerHTML = `
+                    <div class="message">
+                        <div style="font-size: 48px; margin-bottom: 10px;">⚙️</div>
+                        <strong>Configuration Required</strong><br><br>
+                        Please update the serverUrl in the landing page configuration.
+                    </div>
+                `;
+                return;
+            }
+            
+            checkStatus();
+        };
+    </script>
+</body>
+</html>
